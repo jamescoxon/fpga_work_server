@@ -150,7 +150,10 @@ def scheduled_task():
                 else:
                     logging.info('precache: precaching success')
                     r.set(frontier, '{},{}'.format(final_work, diff_data))
-                    r.expire(previous_hash, 600)
+
+                    if frontier != previous_hash:
+                        r.expire(previous_hash, 600)
+
                     return
         else:
             logging.info('precache: fpga busy')
@@ -174,6 +177,14 @@ def log():
             final_work = precache_split[0]
             diff_data = precache_split[1]
             outcome = 'precache'
+            check_outcome = check_work_valid(data['hash'], final_work, data['difficulty'])
+
+            if check_outcome == 'failed':
+                logging.info('precache: failed, need to generate live')
+                fpga_status = 1
+                diff_data, outcome, final_work, work_time = work_generate(data['hash'], data['difficulty'])
+                r.set(data['hash'], '{},{}'.format(final_work, diff_data))
+                fpga_status = 0
 
         else:
             r.incr('count_live')
